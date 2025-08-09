@@ -66,7 +66,7 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 
 	switch mode {
 	case .Read:
-		if state[0] == 0 || state[1] == 0 || state[2] == 0 || state[3] == 0 {
+		if state^ == 0 {
 			state^ = init_state()
 		}
 
