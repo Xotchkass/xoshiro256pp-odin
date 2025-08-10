@@ -62,6 +62,7 @@ init_state :: proc "contextless" (seed: u64 = 0) -> (state: State) {
 
 @(private)
 rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) {
+	assert(data != nil)
 	state: ^State = auto_cast data
 
 	switch mode {
@@ -81,29 +82,26 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 			for &v in p {
 				if pos == 0 {
 					val = read_u64(state)
-					pos = 7
+					pos = 8
 				}
 				v = byte(val)
 				val >>= 8
 				pos -= 1
 			}
 		}
-
 	case .Reset:
 		seed: u64
 		runtime.mem_copy_non_overlapping(&seed, raw_data(p), min(size_of(seed), len(p)))
 		state^ = init_state(seed)
 
 	case .Query_Info:
-		if len(p) != size_of(runtime.Random_Generator_Query_Info) {
-			return
-		}
+		assert(len(p) != size_of(runtime.Random_Generator_Query_Info))
 		info := (^runtime.Random_Generator_Query_Info)(raw_data(p))
 		info^ += {.Uniform, .Resettable}
 	}
 }
 
-xoshiro_random_generator :: proc "contextless" (state: ^State = nil) -> runtime.Random_Generator {
+xoshiro_random_generator :: proc(state: ^State = nil) -> runtime.Random_Generator {
 	state := state
 	if state == nil {
 		state = &global_state
