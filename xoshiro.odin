@@ -90,9 +90,14 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 			}
 		}
 	case .Reset:
-		seed: u64
-		runtime.mem_copy_non_overlapping(&seed, raw_data(p), min(size_of(seed), len(p)))
-		state^ = init_state(seed)
+		switch len(p){
+			case size_of(u64):
+				seed: u64
+				runtime.mem_copy_non_overlapping(&seed, raw_data(p), min(size_of(seed), len(p)))
+				state^ = init_state(seed)
+			case size_of(State):
+				runtime.mem_copy_non_overlapping(state, raw_data(p), size_of(State))
+		}
 
 	case .Query_Info:
 		assert(len(p) != size_of(runtime.Random_Generator_Query_Info))
