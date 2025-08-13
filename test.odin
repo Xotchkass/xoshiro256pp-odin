@@ -1,3 +1,4 @@
+#+private file
 package xoshiro256pp
 
 import "core:math/rand"
