@@ -46,7 +46,7 @@ read_u64 :: proc "contextless" (state: ^State) -> u64 {
 }
 
 @(require_results)
-init_state :: proc "contextless" (seed: u64 = 0) -> (state: State) {
+init_state :: proc "contextless" (#any_int seed: u64 = 0) -> (state: State) {
 	// based on [Splitmix64](https://prng.di.unimi.it/splitmix64.c) by Sebastiano Vigna
 	seed := seed
 	if seed == 0 {
