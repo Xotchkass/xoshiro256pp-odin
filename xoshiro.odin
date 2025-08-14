@@ -106,7 +106,7 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 	}
 }
 
-xoshiro_random_generator :: proc(state: ^State = nil) -> runtime.Random_Generator {
+xoshiro_random_generator :: proc "contextless" (state: ^State = nil) -> runtime.Random_Generator {
 	state := state
 	if state == nil {
 		state = &global_state
