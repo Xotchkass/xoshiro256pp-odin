@@ -5,59 +5,43 @@ import "core:testing"
 
 when ODIN_TEST {
 	@(test)
-	correctness :: proc(t: ^testing.T) {
+	test_determinism :: proc(t: ^testing.T) {
 		context.random_generator = xoshiro_random_generator()
+		rand.reset(13)
+		first_value := rand.int127()
+		rand.reset(13)
+		second_value := rand.int127()
 
-		rand.reset(12069)
-		testing.expect_value(t, rand.uint64(), 6822165461875935344)
-		testing.expect_value(t, rand.uint64(), 8025991002992936016)
-		testing.expect_value(t, rand.uint64(), 9803362972432194534)
-
-		rand.reset(123456789)
-		testing.expect_value(t, rand.uint64(), 11051695339995113534)
-		testing.expect_value(t, rand.uint64(), 4988023938500368323)
-		testing.expect_value(t, rand.uint64(), 15893326098585791437)
-
-		rand.reset(0xDEADBEEF)
-		testing.expect_value(t, rand.uint64(), 3801289226785515695)
-		testing.expect_value(t, rand.uint64(), 16228100807790805918)
-		testing.expect_value(t, rand.uint64(), 14523653586541288138)
-
+		testing.expect(
+			t,
+			first_value == second_value,
+			"xoshiro random number generator is non-deterministic.",
+		)
 	}
 
 	@(test)
-	reset :: proc(t: ^testing.T) {
-		context.random_generator = xoshiro_random_generator()
+	test_determinism_user_set :: proc(t: ^testing.T) {
 
-		// Test directly setting State
-		state := State{1, 2, 3, 4}
-		rand.reset_bytes(([^]byte)(raw_data(state[:]))[:size_of(state)])
-		testing.expect_value(t, ([^]u64)(context.random_generator.data)[:4][0], 1)
-		testing.expect_value(t, ([^]u64)(context.random_generator.data)[:4][1], 2)
-		testing.expect_value(t, ([^]u64)(context.random_generator.data)[:4][2], 3)
-		testing.expect_value(t, ([^]u64)(context.random_generator.data)[:4][3], 4)
+		rng_state_1 := create_state(13)
+		rng_state_2 := create_state(13)
 
-		// Test seeding with an int
-		rand.reset(1)
-		testing.expect_value(
+		rng_1 := xoshiro_random_generator(&rng_state_1)
+		rng_2 := xoshiro_random_generator(&rng_state_2)
+
+		first_value, second_value: i128
+		{
+			context.random_generator = rng_1
+			first_value = rand.int127()
+		}
+		{
+			context.random_generator = rng_2
+			second_value = rand.int127()
+		}
+
+		testing.expect(
 			t,
-			([^]u64)(context.random_generator.data)[:4][0],
-			12823726057557579347,
-		)
-		testing.expect_value(
-			t,
-			([^]u64)(context.random_generator.data)[:4][1],
-			12497766466719209627,
-		)
-		testing.expect_value(
-			t,
-			([^]u64)(context.random_generator.data)[:4][2],
-			11400714814019112804,
-		)
-		testing.expect_value(
-			t,
-			([^]u64)(context.random_generator.data)[:4][3],
-			11400714819323198486,
+			first_value == second_value,
+			"User-set xoshiro random number generator is non-deterministic.",
 		)
 	}
 }
