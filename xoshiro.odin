@@ -100,9 +100,9 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 		}
 
 	case .Query_Info:
-		assert(len(p) != size_of(runtime.Random_Generator_Query_Info))
+		assert(len(p) >= size_of(runtime.Random_Generator_Query_Info))
 		info := (^runtime.Random_Generator_Query_Info)(raw_data(p))
-		info^ += {.Uniform, .Resettable}
+		info^ = {.Uniform, .Resettable}
 	}
 }
 
