@@ -46,7 +46,7 @@ read_u64 :: proc "contextless" (state: ^State) -> u64 {
 }
 
 @(require_results)
-init_state :: proc "contextless" (#any_int seed: u64 = 0) -> (state: State) {
+create_state :: proc "contextless" (#any_int seed: u64 = 0) -> (state: State) {
 	// based on [Splitmix64](https://prng.di.unimi.it/splitmix64.c) by Sebastiano Vigna
 	seed := seed
 	if seed == 0 {
@@ -63,12 +63,12 @@ init_state :: proc "contextless" (#any_int seed: u64 = 0) -> (state: State) {
 @(private)
 rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) {
 	assert(data != nil)
-	state: ^State = auto_cast data
+	state := cast(^State)data
 
 	switch mode {
 	case .Read:
 		if state^ == 0 {
-			state^ = init_state()
+			state^ = create_state()
 		}
 
 		switch len(p) {
@@ -90,13 +90,13 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 			}
 		}
 	case .Reset:
-		switch len(p){
-			case size_of(u64):
-				seed: u64
-				runtime.mem_copy_non_overlapping(&seed, raw_data(p), min(size_of(seed), len(p)))
-				state^ = init_state(seed)
-			case size_of(State):
-				runtime.mem_copy_non_overlapping(state, raw_data(p), size_of(State))
+		switch len(p) {
+		case size_of(u64):
+			seed: u64
+			runtime.mem_copy_non_overlapping(&seed, raw_data(p), min(size_of(seed), len(p)))
+			state^ = create_state(seed)
+		case size_of(State):
+			runtime.mem_copy_non_overlapping(state, raw_data(p), size_of(State))
 		}
 
 	case .Query_Info:
