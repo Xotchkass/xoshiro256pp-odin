@@ -45,6 +45,7 @@ read_u64 :: proc "contextless" (state: ^State) -> u64 {
 	return result
 }
 
+// If seed is 0, uses the CPU cycle counter for non-deterministic initialization.
 @(require_results)
 new_state :: proc "contextless" (seed: u64 = 0) -> (state: State) {
 
