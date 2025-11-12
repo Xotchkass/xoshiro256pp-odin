@@ -44,4 +44,16 @@ when ODIN_TEST {
 			"User-set xoshiro random number generator is non-deterministic.",
 		)
 	}
+
+	@(test)
+	test_query_info :: proc(t: ^testing.T) {
+		rng := xoshiro_random_generator()
+		info := rand.query_info(rng)
+
+		testing.expect(
+			t,
+			.Uniform | .Resettable in info,
+			"xoshiro random number generator does not return correct info.",
+		)
+	}
 }
