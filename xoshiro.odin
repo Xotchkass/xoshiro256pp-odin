@@ -109,7 +109,7 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 		case size_of(State):
 			runtime.mem_copy_non_overlapping(state, raw_data(p), size_of(State))
 		case:
-			panic("Invalid seed size for xoshiro256++ RNG reset.")
+			panic("Invalid argument size for xoshiro RNG reset. Expected 8 bytes (u64) or 32 bytes (State).")
 		}
 	case .Query_Info:
 		assert(len(p) >= size_of(runtime.Random_Generator_Query_Info))
