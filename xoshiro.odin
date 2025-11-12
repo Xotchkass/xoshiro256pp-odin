@@ -29,7 +29,7 @@ State :: distinct [4]u64
 
 @(private)
 @(thread_local)
-global_state: State
+thread_state: State
 
 @(require_results)
 read_u64 :: proc "contextless" (state: ^State) -> u64 {
@@ -46,29 +46,41 @@ read_u64 :: proc "contextless" (state: ^State) -> u64 {
 }
 
 @(require_results)
-create_state :: proc "contextless" (#any_int seed: u64 = 0) -> (state: State) {
+new_state :: proc "contextless" (seed: u64 = 0) -> (state: State) {
+
 	// based on [Splitmix64](https://prng.di.unimi.it/splitmix64.c) by Sebastiano Vigna
+	splitmix_next :: proc "contextless" (x: u64) -> u64 {
+		z := x + 0x9e3779b97f4a7c15
+		z ~= (z >> 30) * 0xbf58476d1ce4e5b9
+		z ~= (z >> 27) * 0x94d049bb133111eb
+		return z ~ (z >> 31)
+	}
+
 	seed := seed
 	if seed == 0 {
 		seed = u64(intrinsics.read_cycle_counter())
 	}
-	z := seed + 0x9e3779b97f4a7c15
-	state[0] = (z ~ (z >> 27)) * 0x94d049bb133111eb
-	state[1] = (z ~ (z >> 30)) * 0xbf58476d1ce4e5b9
-	state[2] = z ~ (z >> 31)
-	state[3] = z
-	return state
+	for &v in state {
+		v = splitmix_next(seed)
+		seed = v
+	}
+
+	return
 }
 
 @(private)
 rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) {
-	assert(data != nil)
-	state := cast(^State)data
+	state: ^State = ---
+	if data == nil {
+		state = &thread_state
+	} else {
+		state = cast(^State)data
+	}
 
 	switch mode {
 	case .Read:
-		if state^ == 0 {
-			state^ = create_state()
+		if state^ == {0, 0, 0, 0} {
+			state^ = new_state()
 		}
 
 		switch len(p) {
@@ -92,13 +104,12 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 	case .Reset:
 		switch len(p) {
 		case size_of(u64):
-			seed: u64
-			runtime.mem_copy_non_overlapping(&seed, raw_data(p), min(size_of(seed), len(p)))
-			state^ = create_state(seed)
+			state^ = new_state((^u64)(raw_data(p))^)
 		case size_of(State):
 			runtime.mem_copy_non_overlapping(state, raw_data(p), size_of(State))
+		case:
+			panic("Invalid seed size for xoshiro256++ RNG reset.")
 		}
-
 	case .Query_Info:
 		assert(len(p) >= size_of(runtime.Random_Generator_Query_Info))
 		info := (^runtime.Random_Generator_Query_Info)(raw_data(p))
@@ -106,10 +117,7 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 	}
 }
 
-xoshiro_random_generator :: proc "contextless" (state: ^State = nil) -> runtime.Random_Generator {
-	state := state
-	if state == nil {
-		state = &global_state
-	}
+@(require_results)
+random_generator :: proc "contextless" (state: ^State = nil) -> runtime.Random_Generator {
 	return {data = state, procedure = rand_proc}
 }
