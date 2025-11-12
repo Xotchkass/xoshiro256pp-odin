@@ -51,8 +51,8 @@ new_state :: proc "contextless" (seed: u64 = 0) -> (state: State) {
 	// based on [Splitmix64](https://prng.di.unimi.it/splitmix64.c) by Sebastiano Vigna
 	splitmix_next :: proc "contextless" (x: u64) -> u64 {
 		z := x + 0x9e3779b97f4a7c15
-		z ~= (z >> 30) * 0xbf58476d1ce4e5b9
-		z ~= (z >> 27) * 0x94d049bb133111eb
+		z = (z ~ (z >> 30)) * 0xbf58476d1ce4e5b9
+		z = (z ~ (z >> 27)) * 0x94d049bb133111eb
 		return z ~ (z >> 31)
 	}
 
@@ -61,8 +61,8 @@ new_state :: proc "contextless" (seed: u64 = 0) -> (state: State) {
 		seed = u64(intrinsics.read_cycle_counter())
 	}
 	for &v in state {
-		v = splitmix_next(seed)
-		seed = v
+		seed = splitmix_next(seed)
+		v = seed
 	}
 
 	return
@@ -115,6 +115,12 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 		info := (^runtime.Random_Generator_Query_Info)(raw_data(p))
 		info^ = {.Uniform, .Resettable}
 	}
+}
+
+@(require_results)
+get_state :: proc(gen: ^runtime.Random_Generator) -> ^State {
+	assert(gen.procedure == rand_proc, "Wrong generator")
+	if gen.data != nil {return cast(^State)gen.data} else {return &thread_state}
 }
 
 @(require_results)
