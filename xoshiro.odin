@@ -71,12 +71,7 @@ new_state :: proc "contextless" (seed: u64 = 0) -> (state: State) {
 
 @(private)
 rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) {
-	state: ^State = ---
-	if data == nil {
-		state = &thread_state
-	} else {
-		state = cast(^State)data
-	}
+	state: ^State = auto_cast data if data != nil else &thread_state
 
 	switch mode {
 	case .Read:
