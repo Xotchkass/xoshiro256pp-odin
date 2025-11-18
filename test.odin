@@ -26,6 +26,17 @@ test_default_seed_nonzero :: proc(t: ^testing.T) {
 }
 
 @(test)
+test_filling_slice :: proc(t: ^testing.T) {
+	context.random_generator = random_generator()
+	rand.reset(t.seed)
+	samples: [13]u16
+	n := rand.read(slice.to_bytes(samples[:]))
+
+	testing.expect_value(t, n, size_of(samples))
+	testing.expect(t, !slice.contains(samples[:], 0), "xoshiro RNG produced zero in filled slice.")
+}
+
+@(test)
 test_default_seed :: proc(t: ^testing.T) {
 	context.random_generator = random_generator()
 	rand.reset(0)
