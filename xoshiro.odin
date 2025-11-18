@@ -48,7 +48,6 @@ read_u64 :: proc "contextless" (state: ^State) -> u64 {
 // If seed is 0, uses the CPU cycle counter for non-deterministic initialization.
 @(require_results)
 new_state :: proc "contextless" (seed: u64 = 0) -> (state: State) {
-
 	// based on [Splitmix64](https://prng.di.unimi.it/splitmix64.c) by Sebastiano Vigna
 	splitmix_next :: proc "contextless" (x: u64) -> u64 {
 		z := x + 0x9e3779b97f4a7c15
@@ -80,21 +79,37 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 		}
 
 		switch len(p) {
+		case size_of(u8):
+			// Fast path for a 8-bit destination.
+			res := read_u64(state)
+			intrinsics.unaligned_store((^u8)(raw_data(p)), u8(res))
+		case size_of(u16):
+			// Fast path for a 16-bit destination.
+			res := read_u64(state)
+			intrinsics.unaligned_store((^u16)(raw_data(p)), u16(res))
+		case size_of(u32):
+			// Fast path for a 32-bit destination.
+			res := read_u64(state)
+			intrinsics.unaligned_store((^u32)(raw_data(p)), u32(res))
 		case size_of(u64):
 			// Fast path for a 64-bit destination.
 			intrinsics.unaligned_store((^u64)(raw_data(p)), read_u64(state))
 		case:
 			// All other cases.
-			pos := i8(0)
-			val := u64(0)
-			for &v in p {
-				if pos == 0 {
-					val = read_u64(state)
-					pos = 8
+			n := len(p) / size_of(u64)
+			buff := ([^]u64)(raw_data(p))[:n]
+			for &e in buff {
+				intrinsics.unaligned_store(&e, read_u64(state))
+			}
+			// Handle remaining bytes
+			rem := len(p) % size_of(u64)
+			if rem > 0 {
+				val := read_u64(state)
+				tail := p[len(p) - rem:]
+				for &b in tail {
+					b = byte(val)
+					val >>= 8
 				}
-				v = byte(val)
-				val >>= 8
-				pos -= 1
 			}
 		}
 	case .Reset:
@@ -104,7 +119,9 @@ rand_proc :: proc(data: rawptr, mode: runtime.Random_Generator_Mode, p: []byte) 
 		case size_of(State):
 			runtime.mem_copy_non_overlapping(state, raw_data(p), size_of(State))
 		case:
-			panic("Invalid argument size for xoshiro RNG reset. Expected 8 bytes (u64) or 32 bytes (State).")
+			panic(
+				"Invalid argument size for xoshiro RNG reset. Expected 8 bytes (u64) or 32 bytes (State).",
+			)
 		}
 	case .Query_Info:
 		assert(len(p) >= size_of(runtime.Random_Generator_Query_Info))
